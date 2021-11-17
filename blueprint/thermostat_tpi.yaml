@@ -71,6 +71,7 @@ variables:
 trigger:
   - platform: time_pattern
     minutes: "/10"
+    id: trigger_10min
   - platform: state
     entity_id: !input entity_consigne
   - platform: state
@@ -84,13 +85,16 @@ action:
       consigne: "{{states(entity_consigne)}}"
       temp_ext: '{{ states(entity_temp_ext) }}'
       temp_int: '{{ states(entity_temp_int) }}'
-      fenetre: '{{states(entity_fenetre)}}'     
-      puissance: >-
-        {%set val = coeff_c * (consigne - temp_int) + coeff_t * (consigne -
-        temp_ext) %}  {% if val > 1 and fenetre == 'off' %} {% set val = 100 %}  {% elif val < 0 or
-        fenetre == 'on' %} {% set val = 0 %}  {% else %} {% set val = ( (val *
-        100) | round(0)) %} {% endif %} {{val}}
-      temps_chauffe: '{{ puissance * 6 }}'
+      fenetre: '{{states(entity_fenetre)}}'
+      periode_sec: '{{ 60 * 10 }}'
+      puissance: '{%set val = coeff_c * (consigne - temp_int) + coeff_t * (consigne
+        - temp_ext) %}  {% if val > 1 and fenetre == ''off'' %} {% set val = 100 %}  {%
+        elif val < 0 or fenetre == ''on'' %} {% set val = 0 %}  {% else %} {% set val
+        = ( (val * 100) | round(0)) %} {% endif %} {{val}}'
+      proportion_delai_avant_timetrigger: '{% if trigger.id == "trigger_10min" %} 
+        {% set val = 1 %} {% else %} {% set val = (periode_sec - (now().minute * 60
+        + now().second) % periode_sec) / periode_sec %} {% endif %} {{ val }}'
+      temps_chauffe: '{{ (puissance * periode_sec / 100 * proportion_delai_avant_timetrigger)|int }}'
   - alias: Met à jour l'indicateur de puissance
     service: input_number.set_value
     target:
